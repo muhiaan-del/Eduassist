@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
     'canvas',
     'tesseract.js',
     '@napi-rs/canvas',
-    '@xenova/transformers', // <--- This prevents Next.js from bundling the native .so files
+    '@huggingface/transformers', // <--- Updated package name
   ],
   outputFileTracingIncludes: {
     '/api/**/*': [
