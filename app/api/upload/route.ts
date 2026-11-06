@@ -3,9 +3,9 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { generateEmbedding } from '@/lib/embeddings'
 import { extractTextFromImage } from '@/lib/ocr'
 import { NextResponse } from 'next/server'
-import { waitUntil } from '@vercel/functions' // <-- ADDED THIS
+import { waitUntil } from '@vercel/functions'
 
-export const maxDuration = 60 // Allow up to 60 seconds on Vercel
+export const maxDuration = 60
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,17 +15,16 @@ const supabaseAdmin = createAdminClient(
 
 export async function POST(req: Request) {
   try {
-    const contentLength = req.headers.get('content-length')
-    if (contentLength && parseInt(contentLength) > 4 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: 'File is too large. Maximum upload size on Vercel is 4MB. Please split large PDFs into smaller parts.' },
-        { status: 413 }
-      )
-    }
-
+    console.log('[upload] --- 1. Request Started ---');
+    
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    
+    if (!user) {
+      console.log('[upload] Error: Unauthorized');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    console.log('[upload] --- 2. User Authenticated:', user.id, '---');
 
     const formData = await req.formData()
     const file = formData.get('file') as File
@@ -33,99 +32,80 @@ export async function POST(req: Request) {
     const unitId = formData.get('unitId') as string
 
     if (!file || !courseId || !unitId) {
+      console.log('[upload] Error: Missing fields', { file: !!file, courseId, unitId });
       return NextResponse.json({ error: 'Missing file, courseId, or unitId' }, { status: 400 })
     }
+    console.log('[upload] --- 3. Form Data Parsed. File:', file.name, file.type, file.size, '---');
 
     let extractedText = ''
 
     if (file.type === 'application/pdf') {
+      // ... (Keep your existing PDF logic here) ...
       const arrayBuffer = await file.arrayBuffer()
       const uint8 = new Uint8Array(arrayBuffer)
       const safeCopy = uint8.slice()
-
       const { extractText } = await import('unpdf')
       const { text } = await extractText(uint8, { mergePages: true })
-
       if (text && text.trim().length > 50) {
         extractedText = text
       } else {
-        console.log('Scanned PDF detected. Converting first page to image...')
         const { pdf } = await import('pdf-to-img')
-
-        try {
-          const document = await pdf(Buffer.from(safeCopy), { scale: 2 })
-          let firstPageImageBuffer: Buffer | null = null
-          for await (const image of document) {
-            firstPageImageBuffer = image
-            break
-          }
-          if (!firstPageImageBuffer) throw new Error('Failed to convert PDF to image.')
-
-          console.log('Running Tesseract OCR...')
-          extractedText = await extractTextFromImage(firstPageImageBuffer)
-          console.log('Tesseract OCR succeeded.')
-        } catch (innerError: any) {
-          console.error('Error during PDF OCR:', innerError)
-          throw innerError
+        const document = await pdf(Buffer.from(safeCopy), { scale: 2 })
+        let firstPageImageBuffer: Buffer | null = null
+        for await (const image of document) {
+          firstPageImageBuffer = image
+          break
         }
+        if (!firstPageImageBuffer) throw new Error('Failed to convert PDF to image.')
+        extractedText = await extractTextFromImage(firstPageImageBuffer)
       }
     } else if (file.type.startsWith('image/')) {
       const arrayBuffer = await file.arrayBuffer()
       const imageBuffer = Buffer.from(arrayBuffer)
-      console.log('Running Tesseract OCR on image...')
       extractedText = await extractTextFromImage(imageBuffer)
-      console.log('Tesseract OCR succeeded.')
     } else {
+      console.log('[upload] --- 4. Parsing as plain text ---');
       extractedText = await file.text()
     }
 
+    console.log('[upload] --- 5. Text Extraction Done. Length:', extractedText.length, '---');
+
     if (!extractedText || extractedText.trim() === '') {
+      console.log('[upload] Error: Extracted text is empty');
       return NextResponse.json({ error: 'Could not extract text from file.' }, { status: 400 })
     }
 
-    console.log('[upload] Inserting material metadata...')
-    let materialId: string
+    console.log('[upload] --- 6. Inserting into Supabase ---');
+    const { data: material, error: dbError } = await supabaseAdmin
+      .from('materials')
+      .insert({
+        course_id: courseId,
+        unit_id: unitId,
+        title: file.name,
+        content: '',
+        owner_id: user.id
+      })
+      .select()
+      .single()
 
-    {
-      const { data: material, error: dbError } = await supabaseAdmin
-        .from('materials')
-        .insert({
-          course_id: courseId,
-          unit_id: unitId,
-          title: file.name,
-          content: '',
-          owner_id: user.id
-        })
-        .select()
-        .single()
-
-      if (dbError) {
-        console.error('[upload] INSERT FAILED:', dbError.code, dbError.message)
-        throw new Error(`Insert failed: ${dbError.message}`)
-      }
-      materialId = material.id
-      console.log('[upload] Material inserted:', materialId)
+    if (dbError) {
+      console.error('[upload] DB Insert Error:', dbError);
+      throw new Error(`Insert failed: ${dbError.message}`)
     }
+    
+    const materialId = material.id
+    console.log('[upload] --- 7. Material Inserted:', materialId, '---');
 
     const truncated = extractedText.substring(0, 50000)
-    console.log(`[upload] Updating content (${truncated.length} chars)...`)
-    {
-      const { error: updateError } = await supabaseAdmin
-        .from('materials')
-        .update({ content: truncated })
-        .eq('id', materialId)
+    const { error: updateError } = await supabaseAdmin
+      .from('materials')
+      .update({ content: truncated })
+      .eq('id', materialId)
 
-      if (updateError) {
-        console.error('[upload] UPDATE FAILED:', updateError.code, updateError.message)
-        throw updateError
-      }
-      console.log('[upload] Content updated.')
-    }
+    if (updateError) throw updateError
+    console.log('[upload] --- 8. Content Updated. Starting Background Task ---');
 
-    // ✅ FIXED: Wrap the background task in waitUntil
-    waitUntil(
-      processBackgroundEmbeddings(extractedText, materialId, courseId)
-    )
+    waitUntil(processBackgroundEmbeddings(extractedText, materialId, courseId))
 
     return NextResponse.json({
       success: true,
@@ -133,13 +113,7 @@ export async function POST(req: Request) {
     })
 
   } catch (error: any) {
-    console.error('[upload] FINAL ERROR:', {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      cause: error.cause?.message
-    })
+    console.error('[upload] FATAL ERROR:', error)
     return NextResponse.json({ 
       error: error.message, 
       details: error.cause?.message || 'Check Vercel logs for the exact cause.' 
@@ -147,12 +121,10 @@ export async function POST(req: Request) {
   }
 }
 
-// ================================
-// BACKGROUND TASK FUNCTION
-// ================================
 async function processBackgroundEmbeddings(extractedText: string, materialId: string, courseId: string) {
   try {
-    console.log('[background] Chunking...')
+    console.log('[background] Starting embeddings...');
+    // (Keep your existing background logic here)
     const sentences = extractedText.match(/[^.!?]+[.!?]+/g) || [extractedText]
     const chunks: string[] = []
     let currentChunk = ''
@@ -171,7 +143,6 @@ async function processBackgroundEmbeddings(extractedText: string, materialId: st
     console.log(`[background] ${validChunks.length} valid chunks.`)
 
     const embeddings: { content: string; embedding: number[] }[] = []
-    console.log('[background] Generating embeddings...')
 
     for (let i = 0; i < validChunks.length; i++) {
       try {
@@ -182,7 +153,6 @@ async function processBackgroundEmbeddings(extractedText: string, materialId: st
       }
     }
 
-    console.log(`[background] ${embeddings.length} embeddings generated. Inserting...`)
     const BATCH_SIZE = 20
     let savedChunks = 0
 
@@ -194,15 +164,8 @@ async function processBackgroundEmbeddings(extractedText: string, materialId: st
         embedding
       }))
 
-      try {
-        const { error: batchErr } = await supabaseAdmin
-          .from('material_chunks')
-          .insert(batch)
-
-        if (!batchErr) savedChunks += batch.length
-      } catch (networkErr: any) {
-        console.error(`[background] Batch network error:`, networkErr.message)
-      }
+      const { error: batchErr } = await supabaseAdmin.from('material_chunks').insert(batch)
+      if (!batchErr) savedChunks += batch.length
       await new Promise(r => setTimeout(r, 500))
     }
 
