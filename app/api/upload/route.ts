@@ -14,15 +14,17 @@ const supabaseAdmin = createAdminClient(
 
 export async function POST(req: Request) {
   try {
+    // 1. Catch Vercel's 4.5MB limit BEFORE processing
     const contentLength = req.headers.get('content-length')
     if (contentLength && parseInt(contentLength) > 4 * 1024 * 1024) {
       return NextResponse.json(
-        { error: 'File is too large. Maximum upload size on Vercel is 4MB.' },
+        { error: 'File is too large. Maximum upload size on Vercel is 4MB. Please split large PDFs into smaller parts.' },
         { status: 413 }
       )
     }
 
     const supabase = await createClient()
+
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -38,7 +40,7 @@ export async function POST(req: Request) {
     let extractedText = ''
 
     // ================================
-    // 1. EXTRACT TEXT
+    // 1. EXTRACT TEXT (Using Tesseract)
     // ================================
     if (file.type === 'application/pdf') {
       const arrayBuffer = await file.arrayBuffer()
@@ -63,9 +65,9 @@ export async function POST(req: Request) {
           }
           if (!firstPageImageBuffer) throw new Error('Failed to convert PDF to image.')
 
-          console.log('Running OCR...')
+          console.log('Running Tesseract OCR...')
           extractedText = await extractTextFromImage(firstPageImageBuffer)
-          console.log('OCR succeeded.')
+          console.log('Tesseract OCR succeeded.')
         } catch (innerError: any) {
           console.error('Error during PDF OCR:', innerError)
           throw innerError
@@ -74,9 +76,9 @@ export async function POST(req: Request) {
     } else if (file.type.startsWith('image/')) {
       const arrayBuffer = await file.arrayBuffer()
       const imageBuffer = Buffer.from(arrayBuffer)
-      console.log('Running OCR on image...')
+      console.log('Running Tesseract OCR on image...')
       extractedText = await extractTextFromImage(imageBuffer)
-      console.log('OCR succeeded.')
+      console.log('Tesseract OCR succeeded.')
     } else {
       extractedText = await file.text()
     }
@@ -112,6 +114,7 @@ export async function POST(req: Request) {
       console.log('[upload] Material inserted:', materialId)
     }
 
+    // Update content separately
     const truncated = extractedText.substring(0, 50000)
     console.log(`[upload] Updating content (${truncated.length} chars)...`)
     {
@@ -130,6 +133,7 @@ export async function POST(req: Request) {
     // ================================
     // 3. FIRE & FORGET BACKGROUND EMBEDDINGS
     // ================================
+    // We do NOT await this. The server returns immediately to avoid Vercel timeouts.
     processBackgroundEmbeddings(extractedText, materialId, courseId)
 
     return NextResponse.json({
