@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { generateEmbedding } from '@/lib/embeddings'
 import { extractTextFromImage } from '@/lib/ocr'
 import { NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions' // <-- ADDED THIS
 
 export const maxDuration = 60 // Allow up to 60 seconds on Vercel
 
@@ -14,7 +15,6 @@ const supabaseAdmin = createAdminClient(
 
 export async function POST(req: Request) {
   try {
-    // 1. Catch Vercel's 4.5MB limit BEFORE processing
     const contentLength = req.headers.get('content-length')
     if (contentLength && parseInt(contentLength) > 4 * 1024 * 1024) {
       return NextResponse.json(
@@ -24,7 +24,6 @@ export async function POST(req: Request) {
     }
 
     const supabase = await createClient()
-
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -39,9 +38,6 @@ export async function POST(req: Request) {
 
     let extractedText = ''
 
-    // ================================
-    // 1. EXTRACT TEXT (Using Tesseract)
-    // ================================
     if (file.type === 'application/pdf') {
       const arrayBuffer = await file.arrayBuffer()
       const uint8 = new Uint8Array(arrayBuffer)
@@ -87,9 +83,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Could not extract text from file.' }, { status: 400 })
     }
 
-    // ================================
-    // 2. SAVE MATERIAL
-    // ================================
     console.log('[upload] Inserting material metadata...')
     let materialId: string
 
@@ -114,7 +107,6 @@ export async function POST(req: Request) {
       console.log('[upload] Material inserted:', materialId)
     }
 
-    // Update content separately
     const truncated = extractedText.substring(0, 50000)
     console.log(`[upload] Updating content (${truncated.length} chars)...`)
     {
@@ -130,11 +122,10 @@ export async function POST(req: Request) {
       console.log('[upload] Content updated.')
     }
 
-    // ================================
-    // 3. FIRE & FORGET BACKGROUND EMBEDDINGS
-    // ================================
-    // We do NOT await this. The server returns immediately to avoid Vercel timeouts.
-    processBackgroundEmbeddings(extractedText, materialId, courseId)
+    // ✅ FIXED: Wrap the background task in waitUntil
+    waitUntil(
+      processBackgroundEmbeddings(extractedText, materialId, courseId)
+    )
 
     return NextResponse.json({
       success: true,
