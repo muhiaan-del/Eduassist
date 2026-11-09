@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
     '@napi-rs/canvas',
     '@huggingface/transformers',
   ],
+  turbopack: {
+    resolveAlias: {
+      'onnxruntime-node': './empty.js',
+    },
+  },
   outputFileTracingIncludes: {
     '/api/**/*': [
       './node_modules/tesseract.js/**/*',
