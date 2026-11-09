@@ -1,19 +1,20 @@
 import { pipeline, env } from '@huggingface/transformers'
 
-// Force the library to use the WASM backend
-env.allowLocalModels = false
+// CRITICAL FIX for Vercel:
+// Force the library to prioritize the WASM backend.
+// This prevents it from trying to load the native 'onnxruntime-node' binary,
+// which is missing on Vercel and causes a crash.
+env.backends.setPriority(['wasm', 'cpu'])
 
-// Safely set the number of threads for the WASM backend
-if (env.backends?.onnx?.wasm) {
-  env.backends.onnx.wasm.numThreads = 1
-}
+// Optional: Prevent it from looking for local model files
+env.allowLocalModels = false
 
 let embedder: any = null
 
 export async function generateEmbedding(text: string) {
   if (!embedder) {
     embedder = await pipeline('feature-extraction', 'Supabase/gte-small', {
-      dtype: 'q8',
+      dtype: 'q8', // Use quantized 8-bit for speed and size
     })
   }
 
