@@ -9,13 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.3.2",
     "@livekit/components-react": "^2.9.24",
     "@livekit/components-styles": "^1.2.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "@universal-rate-limit/nextjs": "^2.2.0",
-    "@vercel/functions": "^3.11.0",
+    "@huggingface/transformers": "^4.2.0",
     "axios": "^1.21.0",
     "livekit-client": "^2.23.0",
     "livekit-server-sdk": "^2.19.2",
@@ -45,7 +44,8 @@
     "typescript": "^5"
   },
   "overrides": {
-    "sharp": "$sharp"
+    "sharp": "$sharp",
+    "onnxruntime-node": "npm:empty-npm-package@^1.0.0"
   },
   "trustedDependencies": [
     "tesseract.js",

@@ -3,7 +3,6 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { generateEmbedding } from '@/lib/embeddings'
 import { extractTextFromImage } from '@/lib/ocr'
 import { NextResponse } from 'next/server'
-import { waitUntil } from '@vercel/functions'
 
 export const maxDuration = 60
 
@@ -40,7 +39,6 @@ export async function POST(req: Request) {
     let extractedText = ''
 
     if (file.type === 'application/pdf') {
-      // ... (Keep your existing PDF logic here) ...
       const arrayBuffer = await file.arrayBuffer()
       const uint8 = new Uint8Array(arrayBuffer)
       const safeCopy = uint8.slice()
@@ -105,7 +103,8 @@ export async function POST(req: Request) {
     if (updateError) throw updateError
     console.log('[upload] --- 8. Content Updated. Starting Background Task ---');
 
-    waitUntil(processBackgroundEmbeddings(extractedText, materialId, courseId))
+    // CALL WITHOUT AWAIT TO RUN IN BACKGROUND (Fixes Vercel Timeout)
+    processBackgroundEmbeddings(extractedText, materialId, courseId)
 
     return NextResponse.json({
       success: true,
@@ -124,7 +123,6 @@ export async function POST(req: Request) {
 async function processBackgroundEmbeddings(extractedText: string, materialId: string, courseId: string) {
   try {
     console.log('[background] Starting embeddings...');
-    // (Keep your existing background logic here)
     const sentences = extractedText.match(/[^.!?]+[.!?]+/g) || [extractedText]
     const chunks: string[] = []
     let currentChunk = ''

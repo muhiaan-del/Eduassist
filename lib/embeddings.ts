@@ -2,15 +2,18 @@ import { pipeline, env } from '@huggingface/transformers'
 
 // Force the library to use the WASM backend
 env.allowLocalModels = false
-env.backends.onnx.wasm.numThreads = 1
+
+// Safely set the number of threads for the WASM backend
+if (env.backends?.onnx?.wasm) {
+  env.backends.onnx.wasm.numThreads = 1
+}
 
 let embedder: any = null
 
 export async function generateEmbedding(text: string) {
   if (!embedder) {
-    // Initialize the pipeline using the WASM backend
     embedder = await pipeline('feature-extraction', 'Supabase/gte-small', {
-      dtype: 'q8', // Quantized 8-bit to keep it fast and small
+      dtype: 'q8',
     })
   }
 
