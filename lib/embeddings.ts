@@ -1,9 +1,8 @@
-// Import from the browser-specific build to force WASM backend
-// @ts-ignore - The browser entry point doesn't have types
-import { pipeline, env } from '@huggingface/transformers/dist/transformers.web.js'
+import { pipeline, env } from '@huggingface/transformers'
 
 env.allowLocalModels = false
 
+// Ensure WASM is used
 if (env.backends?.onnx?.wasm) {
   env.backends.onnx.wasm.numThreads = 1
 }

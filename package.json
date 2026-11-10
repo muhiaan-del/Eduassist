@@ -44,6 +44,9 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^5"
   },
+  "overrides": {
+    "onnxruntime-node": "npm:empty-npm-package@1.0.0"
+  },
   "trustedDependencies": [
     "tesseract.js",
     "protobufjs"
