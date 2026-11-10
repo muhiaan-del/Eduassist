@@ -13,15 +13,6 @@ const nextConfig: NextConfig = {
     '@napi-rs/canvas',
     '@huggingface/transformers',
   ],
-  webpack: (config) => {
-    // 1. Fix ONNX upload error
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'onnxruntime-node$': false,
-    };
-
-    return config;
-  },
   outputFileTracingIncludes: {
     '/api/**/*': [
       './node_modules/tesseract.js/**/*',
