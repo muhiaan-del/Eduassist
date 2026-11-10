@@ -11,10 +11,12 @@
   "dependencies": {
     "@livekit/components-react": "^2.9.24",
     "@livekit/components-styles": "^1.2.0",
+    "@napi-rs/canvas": "^0.1.100",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "@universal-rate-limit/nextjs": "^2.2.0",
     "axios": "^1.21.0",
+    "bmp-js": "^0.1.0",
     "livekit-client": "^2.23.0",
     "livekit-server-sdk": "^2.19.2",
     "next": "16.4.3",

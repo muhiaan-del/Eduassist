@@ -10,12 +10,16 @@ const nextConfig: NextConfig = {
     'pdf-to-img',
     'canvas',
     'tesseract.js',
+    'tesseract.js-core',
+    'bmp-js',
     '@napi-rs/canvas',
   ],
   outputFileTracingIncludes: {
     '/api/**/*': [
       './node_modules/tesseract.js/**/*',
       './node_modules/tesseract.js-core/**/*',
+      './node_modules/bmp-js/**/*',
+      './node_modules/@napi-rs/canvas/**/*',
     ],
   },
 };

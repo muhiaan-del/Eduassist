@@ -4,6 +4,7 @@ export async function generateEmbedding(text: string) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.JINA_API_KEY}`, // <-- ADDED THIS LINE
       },
       body: JSON.stringify({
         model: 'jina-embeddings-v2-base-en',
