@@ -12,7 +12,7 @@
     "@livekit/components-react": "^2.9.24",
     "@livekit/components-styles": "^1.2.0",
     "@napi-rs/canvas": "^0.1.60",
-    "@napi-rs/canvas-linux-x64-gnu": "^0.1.60",
+    
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "@universal-rate-limit/nextjs": "^2.2.0",
