@@ -20,16 +20,6 @@ const nextConfig: NextConfig = {
       'onnxruntime-node$': false,
     };
 
-    // 2. Force Webpack to process CSS through PostCSS (Fixes the missing styling)
-    config.module.rules.push({
-      test: /\.css$/,
-      use: [
-        'style-loader',
-        'css-loader',
-        'postcss-loader',
-      ],
-    });
-
     return config;
   },
   outputFileTracingIncludes: {
