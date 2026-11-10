@@ -1,18 +1,14 @@
 import { pipeline, env } from '@huggingface/transformers'
 
-// Critical for Vercel: prevent loading local model files from read-only filesystem
+// Prevent looking for local models on Vercel
 env.allowLocalModels = false
-
-// Force WASM backend by prioritizing it over native CPU bindings
-// This must be done before pipeline initialization
-;(env as any).backends.setPriority?.(['wasm', 'cpu'])
 
 let embedder: any = null
 
 export async function generateEmbedding(text: string) {
   if (!embedder) {
     embedder = await pipeline('feature-extraction', 'Supabase/gte-small', {
-      dtype: 'q8',
+      dtype: 'q8', // Use quantized 8-bit for speed and size
     })
   }
 

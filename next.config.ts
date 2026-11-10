@@ -12,8 +12,13 @@ const nextConfig: NextConfig = {
     'tesseract.js',
     '@napi-rs/canvas',
     '@huggingface/transformers',
-    'onnxruntime-node', // <-- IMPORTANT: Add this back
   ],
+  turbopack: {
+    resolveAlias: {
+      // Force Turbopack to use the browser/WASM version instead of native node
+      'onnxruntime-node': 'onnxruntime-web', 
+    },
+  },
   outputFileTracingIncludes: {
     '/api/**/*': [
       './node_modules/tesseract.js/**/*',
