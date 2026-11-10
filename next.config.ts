@@ -13,12 +13,23 @@ const nextConfig: NextConfig = {
     '@napi-rs/canvas',
     '@huggingface/transformers',
   ],
-  // Use Webpack alias to stub out the native module
   webpack: (config) => {
+    // 1. Fix ONNX upload error
     config.resolve.alias = {
       ...config.resolve.alias,
       'onnxruntime-node$': false,
     };
+
+    // 2. Force Webpack to process CSS through PostCSS (Fixes the missing styling)
+    config.module.rules.push({
+      test: /\.css$/,
+      use: [
+        'style-loader',
+        'css-loader',
+        'postcss-loader',
+      ],
+    });
+
     return config;
   },
   outputFileTracingIncludes: {
