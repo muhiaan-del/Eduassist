@@ -1,6 +1,9 @@
 import { pipeline, env } from '@huggingface/transformers'
 
-// Prevent looking for local models on Vercel
+// CRITICAL: Force WASM backend priority before pipeline initialization
+// This prevents the library from attempting to load the native onnxruntime-node binary
+env.backends.setPriority(['wasm', 'cpu'])
+
 env.allowLocalModels = false
 
 let embedder: any = null
@@ -8,7 +11,7 @@ let embedder: any = null
 export async function generateEmbedding(text: string) {
   if (!embedder) {
     embedder = await pipeline('feature-extraction', 'Supabase/gte-small', {
-      dtype: 'q8', // Use quantized 8-bit for speed and size
+      dtype: 'q8',
     })
   }
 
