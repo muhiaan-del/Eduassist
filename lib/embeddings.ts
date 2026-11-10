@@ -1,30 +1,16 @@
 import { pipeline, env } from '@huggingface/transformers'
-import Module from 'module'
 
-// 1. Intercept the native module require and redirect to WebAssembly
-// This prevents Vercel from crashing due to missing native binaries.
-try {
-  const originalRequire = Module.prototype.require;
-  Module.prototype.require = function (id: string) {
-    if (id === 'onnxruntime-node') {
-      // Silently return the web/wasm version instead of crashing
-      return originalRequire.apply(this, ['onnxruntime-web']);
-    }
-    return originalRequire.apply(this, arguments as any);
-  };
-} catch (e) {
-  console.warn('Could not patch require for onnxruntime-node', e);
-}
-
-// 2. Prevent local model downloads on Vercel
-env.allowLocalModels = false
+// 1. Tell Transformers.js to run in a browser-like environment
+// This forces it to use the WASM (WebAssembly) backend and skips the native onnxruntime-node binary
+;(env as any).backends.onnx.wasm.proxy = false;
+(env as any).allowLocalModels = false;
 
 let embedder: any = null
 
 export async function generateEmbedding(text: string) {
   if (!embedder) {
     embedder = await pipeline('feature-extraction', 'Supabase/gte-small', {
-      dtype: 'q8', // Use quantized 8-bit for speed and size
+      dtype: 'q8',
     })
   }
 
