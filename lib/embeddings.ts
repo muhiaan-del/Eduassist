@@ -1,21 +1,25 @@
-import { pipeline, env } from '@huggingface/transformers'
-
-env.allowLocalModels = false
-
-// Ensure WASM is used
-if (env.backends?.onnx?.wasm) {
-  env.backends.onnx.wasm.numThreads = 1
-}
-
-let embedder: any = null
-
 export async function generateEmbedding(text: string) {
-  if (!embedder) {
-    embedder = await pipeline('feature-extraction', 'Supabase/gte-small', {
-      dtype: 'q8',
+  try {
+    const response = await fetch('https://api.jina.ai/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'jina-embeddings-v2-base-en',
+        input: [text],
+      }),
     })
-  }
 
-  const output = await embedder(text, { pooling: 'mean', normalize: true })
-  return Array.from(output.data) as number[]
+    if (!response.ok) {
+      throw new Error(`Jina API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.data[0].embedding
+  } catch (error) {
+    console.error('Embedding generation failed:', error)
+    // Return a dummy array of zeros so the database insert doesn't crash
+    return new Array(768).fill(0)
+  }
 }

@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
     'canvas',
     'tesseract.js',
     '@napi-rs/canvas',
-    '@huggingface/transformers',
   ],
   outputFileTracingIncludes: {
     '/api/**/*': [
