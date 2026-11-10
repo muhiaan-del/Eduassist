@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
       './node_modules/tesseract.js-core/**/*',
       './node_modules/bmp-js/**/*',
       './node_modules/@napi-rs/canvas/**/*',
+      './node_modules/@napi-rs/canvas-linux-x64-gnu/**/*',
     ],
   },
 };

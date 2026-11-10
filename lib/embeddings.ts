@@ -4,7 +4,7 @@ export async function generateEmbedding(text: string) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.JINA_API_KEY}`, // <-- ADDED THIS LINE
+        'Authorization': `Bearer ${process.env.JINA_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'jina-embeddings-v2-base-en',
@@ -20,7 +20,6 @@ export async function generateEmbedding(text: string) {
     return data.data[0].embedding
   } catch (error) {
     console.error('Embedding generation failed:', error)
-    // Return a dummy array of zeros so the database insert doesn't crash
     return new Array(768).fill(0)
   }
 }
