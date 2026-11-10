@@ -13,11 +13,13 @@ const nextConfig: NextConfig = {
     '@napi-rs/canvas',
     '@huggingface/transformers',
   ],
-  turbopack: {
-    resolveAlias: {
-      // Force Turbopack to use the browser/WASM version instead of native node
-      'onnxruntime-node': 'onnxruntime-web', 
-    },
+  // Use Webpack alias to stub out the native module
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'onnxruntime-node$': false,
+    };
+    return config;
   },
   outputFileTracingIncludes: {
     '/api/**/*': [

@@ -1,10 +1,12 @@
 import { pipeline, env } from '@huggingface/transformers'
 
-// CRITICAL: Force WASM backend priority before pipeline initialization
-// This prevents the library from attempting to load the native onnxruntime-node binary
-env.backends.setPriority(['wasm', 'cpu'])
-
+// CRITICAL for Vercel: Disable local model loading
 env.allowLocalModels = false
+
+// Limit WASM threads for serverless environment
+if (env.backends?.onnx?.wasm) {
+  env.backends.onnx.wasm.numThreads = 1
+}
 
 let embedder: any = null
 
