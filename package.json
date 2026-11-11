@@ -27,7 +27,8 @@
     "remark-gfm": "^4.0.1",
     "sharp": "^0.35.5",
     "tesseract.js": "^7.0.0",
-    "unpdf": "^2.0.0"
+    "unpdf": "^2.0.0",
+    "wasm-feature-detect": "^1.10.0"
   },
   "optionalDependencies": {
     "@napi-rs/canvas-linux-x64-gnu": "^0.1.60"
