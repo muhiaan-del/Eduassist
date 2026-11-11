@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { generateEmbedding } from '@/lib/embeddings'
 import { extractTextFromImage } from '@/lib/ocr'
+import { pdfToPng } from 'pdf-to-png-converter' // <-- Use this
 import { NextResponse } from 'next/server'
 
 export const maxDuration = 60
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
       const arrayBuffer = await file.arrayBuffer()
       const pdfBuffer = Buffer.from(arrayBuffer)
       
-      const { extractText, renderPageAsImage } = await import('unpdf')
+      const { extractText } = await import('unpdf')
       
       // 1. Try to extract text first
       const { text } = await extractText(new Uint8Array(pdfBuffer), { mergePages: true })
@@ -52,18 +53,18 @@ export async function POST(req: Request) {
       } else {
         console.log('[upload] Scanned PDF detected. Rendering page to image...')
         
-        // 2. Render page 1 to a PNG Uint8Array using unpdf's built-in renderer
-        const imageUint8 = await renderPageAsImage(pdfBuffer, 1, {
-          scale: 2.0,
-          toDataURL: false,
+        // 2. Use pdf-to-png-converter
+        const pngPages = await pdfToPng(pdfBuffer, {
+          viewportScale: 2.0,
+          pagesToProcess: [1],
+          returnPageContent: true
         })
 
-        if (!imageUint8) {
+        if (!pngPages || pngPages.length === 0) {
           throw new Error('Failed to render PDF page to image.')
         }
 
-        // 3. Convert to Buffer for Tesseract
-        const firstPageImageBuffer = Buffer.from(imageUint8)
+        const firstPageImageBuffer = pngPages[0].content
 
         console.log('[upload] Running Tesseract OCR on rendered PDF page...')
         extractedText = await extractTextFromImage(firstPageImageBuffer)
@@ -131,6 +132,7 @@ export async function POST(req: Request) {
   }
 }
 
+// Keep your exact processBackgroundEmbeddings function below this...
 async function processBackgroundEmbeddings(extractedText: string, materialId: string, courseId: string) {
   try {
     console.log('[background] Starting embeddings...');

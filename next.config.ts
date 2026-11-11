@@ -7,7 +7,8 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: [
     'pdf-parse',
-    'pdfjs-dist', // <-- ADD THIS
+    'pdfjs-dist',
+    'pdf-to-png-converter',
     'tesseract.js',
     'tesseract.js-core',
     'bmp-js',
@@ -17,10 +18,10 @@ const nextConfig: NextConfig = {
       './node_modules/tesseract.js/**/*',
       './node_modules/tesseract.js-core/**/*',
       './node_modules/bmp-js/**/*',
-      // Include pdfjs-dist assets for the converter
       './node_modules/pdfjs-dist/cmaps/**/*',
       './node_modules/pdfjs-dist/standard_fonts/**/*',
       './node_modules/pdfjs-dist/wasm/**/*',
+      './node_modules/pdf-to-png-converter/**/*',
     ],
   },
 };
