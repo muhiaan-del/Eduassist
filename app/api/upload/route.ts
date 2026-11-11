@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { generateEmbedding } from '@/lib/embeddings'
 import { extractTextFromImage } from '@/lib/ocr'
-import { pdfToPng } from 'pdf-to-png-converter' // <-- NEW IMPORT
+import { pdfToPng } from 'pdf-to-png-converter'
 import { NextResponse } from 'next/server'
 
 export const maxDuration = 60
@@ -40,22 +40,26 @@ export async function POST(req: Request) {
     let extractedText = ''
 
     if (file.type === 'application/pdf') {
+      // 1. Read the entire file into a safe Node Buffer
       const arrayBuffer = await file.arrayBuffer()
-      const uint8 = new Uint8Array(arrayBuffer)
+      const pdfBuffer = Buffer.from(arrayBuffer)
+
+      // 2. Create a separate copy JUST for unpdf
+      const unpdfBuffer = Buffer.from(pdfBuffer) 
       
       const { extractText } = await import('unpdf')
-      const { text } = await extractText(uint8, { mergePages: true })
+      const { text } = await extractText(new Uint8Array(unpdfBuffer), { mergePages: true })
       
       if (text && text.trim().length > 50) {
         extractedText = text
       } else {
         console.log('[upload] Scanned PDF detected. Converting to image...')
         
-        // --- NEW PDF TO PNG CONVERSION ---
-        const pngPages = await pdfToPng(Buffer.from(arrayBuffer), {
-          viewportScale: 2.0, // Equivalent to scale: 2 in pdf-to-img
-          pagesToProcess: [1], // Only process the first page for OCR
-          returnPageContent: true // Returns the PNG as a Buffer
+        // 3. The original pdfBuffer is guaranteed safe here
+        const pngPages = await pdfToPng(pdfBuffer, {
+          viewportScale: 2.0,
+          pagesToProcess: [1],
+          returnPageContent: true
         })
 
         if (!pngPages || pngPages.length === 0) {
@@ -63,7 +67,6 @@ export async function POST(req: Request) {
         }
 
         const firstPageImageBuffer = pngPages[0].content
-        // ---------------------------------
 
         console.log('[upload] Running Tesseract OCR on converted PDF page...')
         extractedText = await extractTextFromImage(firstPageImageBuffer)
@@ -115,7 +118,6 @@ export async function POST(req: Request) {
     if (updateError) throw updateError
     console.log('[upload] --- 8. Content Updated. Starting Background Task ---');
 
-    // CALL WITHOUT AWAIT TO RUN IN BACKGROUND (Fixes Vercel Timeout)
     processBackgroundEmbeddings(extractedText, materialId, courseId)
 
     return NextResponse.json({
