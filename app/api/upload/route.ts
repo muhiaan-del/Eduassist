@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { generateEmbedding } from '@/lib/embeddings'
 import { extractTextFromImage } from '@/lib/ocr'
-import { pdfToPng } from 'pdf-to-png-converter'
 import { NextResponse } from 'next/server'
 
 export const maxDuration = 60
@@ -40,35 +39,33 @@ export async function POST(req: Request) {
     let extractedText = ''
 
     if (file.type === 'application/pdf') {
-      // 1. Read the entire file into a safe Node Buffer
       const arrayBuffer = await file.arrayBuffer()
       const pdfBuffer = Buffer.from(arrayBuffer)
-
-      // 2. Create a separate copy JUST for unpdf
-      const unpdfBuffer = Buffer.from(pdfBuffer) 
       
-      const { extractText } = await import('unpdf')
-      const { text } = await extractText(new Uint8Array(unpdfBuffer), { mergePages: true })
+      const { extractText, renderPageAsImage } = await import('unpdf')
+      
+      // 1. Try to extract text first
+      const { text } = await extractText(new Uint8Array(pdfBuffer), { mergePages: true })
       
       if (text && text.trim().length > 50) {
         extractedText = text
       } else {
-        console.log('[upload] Scanned PDF detected. Converting to image...')
+        console.log('[upload] Scanned PDF detected. Rendering page to image...')
         
-        // 3. The original pdfBuffer is guaranteed safe here
-        const pngPages = await pdfToPng(pdfBuffer, {
-          viewportScale: 2.0,
-          pagesToProcess: [1],
-          returnPageContent: true
+        // 2. Render page 1 to a PNG Uint8Array using unpdf's built-in renderer
+        const imageUint8 = await renderPageAsImage(pdfBuffer, 1, {
+          scale: 2.0,
+          toDataURL: false,
         })
 
-        if (!pngPages || pngPages.length === 0) {
-          throw new Error('Failed to convert PDF to image.')
+        if (!imageUint8) {
+          throw new Error('Failed to render PDF page to image.')
         }
 
-        const firstPageImageBuffer = pngPages[0].content
+        // 3. Convert to Buffer for Tesseract
+        const firstPageImageBuffer = Buffer.from(imageUint8)
 
-        console.log('[upload] Running Tesseract OCR on converted PDF page...')
+        console.log('[upload] Running Tesseract OCR on rendered PDF page...')
         extractedText = await extractTextFromImage(firstPageImageBuffer)
       }
     } else if (file.type.startsWith('image/')) {

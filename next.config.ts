@@ -7,19 +7,20 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: [
     'pdf-parse',
-    'pdf-to-img',
-    'canvas',
+    'pdfjs-dist', // <-- ADD THIS
     'tesseract.js',
     'tesseract.js-core',
     'bmp-js',
-    '@napi-rs/canvas',
   ],
   outputFileTracingIncludes: {
     '/api/**/*': [
       './node_modules/tesseract.js/**/*',
       './node_modules/tesseract.js-core/**/*',
       './node_modules/bmp-js/**/*',
-      './node_modules/@napi-rs/canvas/**/*',
+      // Include pdfjs-dist assets for the converter
+      './node_modules/pdfjs-dist/cmaps/**/*',
+      './node_modules/pdfjs-dist/standard_fonts/**/*',
+      './node_modules/pdfjs-dist/wasm/**/*',
     ],
   },
 };
