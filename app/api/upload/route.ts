@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { generateEmbedding } from '@/lib/embeddings'
 import { extractTextFromImage } from '@/lib/ocr'
+import { pdfToPng } from 'pdf-to-png-converter' // <-- NEW IMPORT
 import { NextResponse } from 'next/server'
 
 export const maxDuration = 60
@@ -41,25 +42,36 @@ export async function POST(req: Request) {
     if (file.type === 'application/pdf') {
       const arrayBuffer = await file.arrayBuffer()
       const uint8 = new Uint8Array(arrayBuffer)
-      const safeCopy = uint8.slice()
+      
       const { extractText } = await import('unpdf')
       const { text } = await extractText(uint8, { mergePages: true })
+      
       if (text && text.trim().length > 50) {
         extractedText = text
       } else {
-        const { pdf } = await import('pdf-to-img')
-        const document = await pdf(Buffer.from(safeCopy), { scale: 2 })
-        let firstPageImageBuffer: Buffer | null = null
-        for await (const image of document) {
-          firstPageImageBuffer = image
-          break
+        console.log('[upload] Scanned PDF detected. Converting to image...')
+        
+        // --- NEW PDF TO PNG CONVERSION ---
+        const pngPages = await pdfToPng(Buffer.from(arrayBuffer), {
+          viewportScale: 2.0, // Equivalent to scale: 2 in pdf-to-img
+          pagesToProcess: [1], // Only process the first page for OCR
+          returnPageContent: true // Returns the PNG as a Buffer
+        })
+
+        if (!pngPages || pngPages.length === 0) {
+          throw new Error('Failed to convert PDF to image.')
         }
-        if (!firstPageImageBuffer) throw new Error('Failed to convert PDF to image.')
+
+        const firstPageImageBuffer = pngPages[0].content
+        // ---------------------------------
+
+        console.log('[upload] Running Tesseract OCR on converted PDF page...')
         extractedText = await extractTextFromImage(firstPageImageBuffer)
       }
     } else if (file.type.startsWith('image/')) {
       const arrayBuffer = await file.arrayBuffer()
       const imageBuffer = Buffer.from(arrayBuffer)
+      console.log('[upload] Running Tesseract OCR on image...')
       extractedText = await extractTextFromImage(imageBuffer)
     } else {
       console.log('[upload] --- 4. Parsing as plain text ---');

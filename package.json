@@ -11,7 +11,6 @@
   "dependencies": {
     "@livekit/components-react": "^2.9.24",
     "@livekit/components-styles": "^1.2.0",
-    "@napi-rs/canvas": "^0.1.60",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "@universal-rate-limit/nextjs": "^2.2.0",
@@ -21,7 +20,7 @@
     "livekit-server-sdk": "^2.19.2",
     "next": "16.4.3",
     "pdf-parse": "^2.4.5",
-    "pdf-to-img": "^7.0.1",
+    "pdf-to-png-converter": "^4.3.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "^10.1.0",
